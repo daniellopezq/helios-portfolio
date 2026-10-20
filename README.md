@@ -218,7 +218,7 @@ The pipeline today:
 
 - FreeSWITCH and VICIdial record locally. Background jobs fetch each file, convert it, and upload it to **private object storage**. The local copy is deleted only after the full fetch, convert, upload, and update chain succeeds.
 - Playback goes through an authorization check and a **short-lived signed URL**. Recordings are never public links.
-- **AssemblyAI** transcribes with speaker labels. It replaced Whisper in June 2026, when the previous API ran out of quota mid-day and the business had no transcripts; speaker separation was the improvement that justified the switch.
+- **AssemblyAI** transcribes with speaker labels. It replaced Whisper in June 2026 because it separates the agent from the homeowner. Call review needs to know who said what, and Whisper's transcripts didn't label speakers.
 - The diarized transcript feeds **AI call review**, which flags calls for a person to check (see [§10](#10-applied-ai-narrow-roles-human-paths)).
 - Permanent failures, such as an authentication error or missing storage config, are marked terminal. A not-yet-ready file stays retryable.
 
