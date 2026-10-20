@@ -8,9 +8,9 @@ An appointment is the visible result of a longer chain. A lead needs an owner. A
 
 The engineering story of Helios is how those connections became explicit: through persistent identities, durable work queues, reconciliation, and increasingly useful operational feedback.
 
-**Focus:** application engineering · telephony integration · asynchronous workflows · operational reliability
+**Focus:** application engineering · telephony integration · asynchronous workflows · applied AI · operational reliability
 
-**Core technologies:** Python, Reflex, FastAPI, PostgreSQL, FreeSWITCH, VICIdial
+**Core technologies:** Python, Reflex, FastAPI, PostgreSQL, FreeSWITCH, VICIdial, Anthropic Claude, AssemblyAI
 
 **Project stage:** an operational system evolving toward a broader SaaS offering
 
@@ -35,7 +35,11 @@ flowchart LR
     Workers --> Comms["Messaging and email providers"]
     Comms -->|"Delivery events and replies"| API
     Workers -->|"Retrieve recording files"| FS
-    Workers --> Media["Private media storage<br/>and transcription"]
+    Workers --> Media["Private media storage"]
+    App -->|"Notes review"| AI["Language-model and<br/>speech-to-text services"]
+    API -->|"Reply classification"| AI
+    Workers -->|"Transcription, call review<br/>and report narratives"| AI
+    API --> Chat["Team chat approvals<br/>and alerts"]
     Workers --> Context["Reporting, exports<br/>and weather providers"]
     App -.-> Observe["Errors, queue health<br/>and uptime monitoring"]
     Workers -.-> Observe
@@ -97,7 +101,36 @@ The October 19 engineering note reports an initial production backfill and live 
 
 **Engineering lesson:** enrichment should retain provenance, communicate freshness, and degrade gracefully.
 
-## 6. Make operational changes testable
+## 6. Keep AI behind confidence gates and human review
+
+Helios uses language models in several narrow roles rather than as one autonomous agent. Each role has a bounded input, a constrained output, and a defined effect on the business record.
+
+| Role | Model input | Effect |
+| --- | --- | --- |
+| Appointment notes check | Notes written when an appointment is submitted | Flags notes that need attention; agents and administrators can filter on the flag |
+| Call review | Speaker-labelled call transcript | Rates the call Good, Review, or Urgent against the team's qualification and misrepresentation criteria |
+| Appointment SMS replies | A homeowner's or contractor's message with matched appointment context | Classifies intent with a confidence score; reschedule and cancellation requests go to a team-chat approval with Approve/Deny buttons |
+| Outreach reply classification | A reply to an outreach message | Assigns one of eight categories with a confidence score; flags interested contacts for a human-staffed inbox; sends no automatic replies |
+| Reporting | Aggregated funnel and call-event metrics | Writes short narrative insights for contractors and recommendations on phone-number health |
+| Lead research | Public excerpts from business websites | Runs on a local model to classify businesses and propose contact candidates with quoted evidence |
+
+Call recordings are transcribed with speaker diarization in background jobs. The transcript then feeds call review. The speech-to-text provider changed in June after the original provider's account ran out of quota. The migration reused the existing queue and retry behavior, and a backfill recovered the calls missed during the outage.
+
+Several design patterns recur:
+
+- **Deterministic paths come first.** Opt-out keywords are handled before any model is called, and configurable keyword rules classify common replies without a model call.
+- **Uncertainty routes to people.** Classifiers return structured output with a confidence score. Low confidence, or output that cannot be parsed, sends the message to human review instead of an automatic action.
+- **Errors are asymmetric by design.** Opt-out-type replies are treated as do-not-contact at high confidence; uncertain replies go to review. An appointment's call-review flag can only escalate: the worst reviewed call wins.
+- **AI never blocks the core workflow.** If the model call fails or times out, the appointment is still saved and its flag stays pending. Reports fall back to template text.
+- **Prompts and decisions are reviewable.** Administrators edit prompts without a deploy. Classifications record the prompt, raw response, confidence, and model version. Operators can reclassify replies, and those corrections are kept to measure prompt quality.
+- **The model is a setting.** One configuration value selects the model for every call site. A read-only replay tool runs past messages through a candidate model and compares the results to the stored labels without sending anything or changing data.
+- **Extracted facts stay unverified.** The lead-research tool accepts a model-proposed name only when it is backed by an exact quote from the fetched page. Names stay marked as to be confirmed, and ownership is never inferred from a title alone. A [standalone version of the classifier](https://github.com/daniellopezq/local-business-classifier) is public.
+
+The replay tool also showed a limit: without deterministic sampling, the same message could receive a different label on a different run. In the recorded case the routing outcome was the same. Deterministic classifier settings are a recorded follow-up. Model output is a triage aid; it does not determine compliance, call quality, or a person's identity.
+
+**Engineering lesson:** give a model a narrow decision and a way to say it is unsure, and give everything it is unsure about a human path.
+
+## 7. Make operational changes testable
 
 Telephony and background processing introduced failure modes that basic syntax checks could not reveal: behavior after a cold restart, mismatches between deployed configuration and source, and callbacks that arrive after the initiating request has finished.
 
@@ -111,16 +144,16 @@ This history also changed how progress was described. Code written, tests passin
 
 | Period | Engineering focus |
 | --- | --- |
-| March–April 2026 | Agent and contractor workflows, appointment history, sign-in, recording and transcription, prospect intake, and provider integration. |
-| May–June 2026 | FreeSWITCH calling, staged telephony changes, recording recovery, lead import improvements, and early background-job migrations. |
+| March–April 2026 | Agent and contractor workflows, appointment history, sign-in, recording and transcription, prospect intake, provider integration, AI review of appointment notes with administrator-editable prompts, and SMS intent classification with team-chat approval. |
+| May–June 2026 | FreeSWITCH calling, staged telephony changes, recording recovery, lead import improvements, early background-job migrations, a speech-to-text migration with speaker labels, and AI call review. |
 | July–August 2026 | Durable recurring work, schema guardrails, VICIdial lead delivery, outcome reconciliation, and caller-ID inventory synchronization. |
-| September–October 2026 | SMS outreach and operator inbox workflows, repository recovery practices, pilot preparation, and appointment weather history. |
+| September–October 2026 | SMS outreach and operator inbox workflows, outreach reply classification, a shared model setting with replay testing, local-model lead research, repository recovery practices, pilot preparation, and appointment weather history. |
 
 The periods summarize dated engineering records. Individual features have different implementation, test, and deployment histories.
 
 ## What this project demonstrates
 
-Helios brings product workflows into contact with the realities of distributed systems: delayed callbacks, partial failures, duplicated work, inconsistent historical data, and changing operational requirements.
+Helios brings product workflows into contact with the realities of distributed systems: delayed callbacks, partial failures, duplicated work, inconsistent historical data, and changing operational requirements. It also applies language models to that work in bounded roles, with confidence gates and human review.
 
 The useful result is a set of connected capabilities with increasingly explicit ownership and recovery behavior. The design decisions can be examined through a lead's journey into a call, an appointment's transition into contractor follow-up, or a message's path from eligibility to a provider outcome.
 
