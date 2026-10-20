@@ -114,7 +114,7 @@ Helios uses language models in several narrow roles rather than as one autonomou
 | Reporting | Aggregated funnel and call-event metrics | Writes short narrative insights for contractors and recommendations on phone-number health |
 | Lead research | Public excerpts from business websites | Runs on a local model to classify businesses and propose contact candidates with quoted evidence |
 
-Call recordings are transcribed with speaker diarization in background jobs. The transcript then feeds call review. The speech-to-text provider changed in June after the original provider's account ran out of quota. The migration reused the existing queue and retry behavior, and a backfill recovered the calls missed during the outage.
+Call recordings are transcribed with speaker diarization in background jobs. The transcript then feeds call review.
 
 Several design patterns recur:
 
