@@ -13,7 +13,8 @@ In March 2026 that chain lived in a browser dialer, spreadsheets, text messages 
 - **Three carriers behind one dialplan.** Switching carriers is a config value, not a code change.
 - **No more duplicate texts:** after a retry bug sent 117, every outbound message is claimed before it's sent, so a retry can't text a homeowner twice.
 - **Bounded imports:** a 177,000-lead file that crashed the database led to a streaming importer with batched commits and resume.
-- **First external pilot** prepared for late October 2026 on its own dedicated stack.
+- **In production with real users:** agents, admins and contractors have run the business on it daily since March 2026.
+- **Opening to outside companies:** an external pilot starts late October 2026, each company on its own dedicated stack.
 
 ## How it fits together
 
@@ -47,7 +48,7 @@ Models do narrow jobs: reviewing call transcripts, classifying SMS replies, flag
 
 ## What it isn't (yet)
 
-- One operating business in production, plus a pilot on its own stack. **Not** a multi-tenant SaaS: tenant isolation in a shared database isn't proven, which is why the pilot is separate.
+- Production today is one operating business with real users; outside companies join through the pilot, each on its own stack. **Not** a multi-tenant SaaS: tenant isolation in a shared database isn't proven, which is why the pilot is separate.
 - The in-house predictive dialer works but is beta; voice-based machine detection runs in shadow mode only.
 - CI, backups and restore tests exist but are recent.
 
